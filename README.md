@@ -19,29 +19,47 @@ The pipeline enforces industry best practices:
 
 ## Folder structure (Repository)
 ```
-retail-aws-etl-pipeline/
+RETAIL-AWS-ETL-PIPELINE/
+│
+├── .git/
+│
 ├── README.md
+│
 ├── docs/
 │   ├── architecture.md
+│   ├── athena_queries.md
 │   ├── dataflow.md
-│   ├── lambda_validation.md
+│   ├── file_movement.md
+│   ├── glue_crawlers.md
 │   ├── glue_etl.md
 │   ├── gold_job.md
-│   ├── schema_mapping.md
-│   ├── timestamp_parsing.md
-│   ├── validation.md
-│   ├── rejects.md
-│   ├── file_movement.md
-│   ├── s3_layout.md
+|   ├── iam_roles_permissions.md
+│   ├── job_parameters.md
+│   ├── lambda_validation.md
 │   ├── monitoring.md
+│   ├── rejects.md
+│   ├── s3_layout.md
+│   ├── schema_mapping.md
+│   ├── scripts.md
+│   ├── timestamp_parsing.md
 │   ├── troubleshooting.md
-│   ├── glue_crawlers.md
-│   ├── athena_queries.md
-│   └── scripts.md
+│   ├── validation.md
+│
+├── imgs/
+│   ├── (architecture and data flow images)
+│
+├── sample_csv_files/
+│   ├── sales_2024-10-16.csv
+│   ├── sales_2024-12-07.csv
+│   ├── sales_2025-06-12.csv
+│   ├── sales_2025-09-03.csv
+│   ├── sales_2025-10-18.csv
+│
 └── scripts/
     ├── glue_job_raw_to_processed.py
     ├── incremental_auto_compaction.py
     └── lambda_validator.py
+
 ```
 
 ## Key Capabilities
@@ -83,6 +101,111 @@ The GOLD layer contains curated, analytics-ready tables (facts) created from pro
 4. Deploy Glue job for raw->processed (bronze/silver).
 5. Deploy the gold compaction Glue job to run periodically or on-demand.
 6. Configure Glue crawlers and Athena for querying the processed and gold layers.
+
+---
+
+## 🔐 IAM Roles Overview
+
+This pipeline uses dedicated IAM roles to ensure secure, least-privilege access across all AWS services involved.
+
+### **LambdaValidationRole**
+Handles RAW → VALIDATED/REJECTED:
+- Read from `raw/`
+- Write to `validated/` and `rejected/system/`
+- Delete processed RAW files
+- Publish SNS alerts
+- Write CloudWatch logs
+
+### **GlueETLRole**
+Used by the Glue ETL job (VALIDATED → PROCESSED):
+- Read from `validated/`
+- Write to `processed/`, `rejected/data_quality/`, and `archive/`
+- Delete validated files after success
+- Publish SNS notifications  
+- Optionally start Glue crawlers
+
+### **GlueGoldRole**
+Used by the Gold Compaction job (PROCESSED → GOLD):
+- Read processed partitions
+- Write compacted gold data and audit metrics
+- Overwrite existing partitions safely
+- Start Glue crawler (optional)
+- Write logs to CloudWatch
+
+### **GlueCrawlerRole**
+Used by Glue Crawlers:
+- Read `processed/` and `gold/` folders
+- Update Glue Data Catalog tables & partitions
+- Emit logs to CloudWatch
+
+### **Monitoring Roles**
+All compute services (Lambda + Glue) have:
+- CloudWatch logging permissions  
+- SNS publish permissions for alerts
+
+### **Bucket Policy (Recommended)**
+- Block public access  
+- Enforce SSL  
+- Enforce encryption  
+- Allow only pipeline IAM roles to write  
+
+These roles together enforce a secure, production-grade, least-privilege architecture where every service can interact safely while keeping data protected and traceable.
+
+```
+flowchart LR
+
+    %% STYLE
+    classDef role fill=#f9f9f9,stroke=#555,stroke-width=1px,color=#000,border-radius=6px;
+    classDef service fill=#eef7ff,stroke=#4a90e2,stroke-width=1px,border-radius=6px;
+    classDef bucket fill=#fef7e0,stroke=#e2a93b,stroke-width=1px,border-radius=6px;
+    classDef monitor fill=#fdeaea,stroke=#e26a6a,stroke-width=1px,border-radius=6px;
+
+    %% SERVICES
+    RAW((S3 RAW)):::bucket
+    VALIDATED((S3 VALIDATED)):::bucket
+    PROCESSED((S3 PROCESSED)):::bucket
+    GOLD((S3 GOLD)):::bucket
+
+    SNS((SNS Topics)):::monitor
+    CW((CloudWatch Logs)):::monitor
+    CATALOG((Glue Data Catalog)):::service
+
+    %% ROLES
+    LAMBDA_ROLE([LambdaValidationRole]):::role
+    GLUE_ETL_ROLE([GlueETLRole]):::role
+    GLUE_GOLD_ROLE([GlueGoldRole]):::role
+    CRAWLER_ROLE([GlueCrawlerRole]):::role
+
+    %% LAMBDA VALIDATOR
+    RAW -->|read| LAMBDA_ROLE
+    LAMBDA_ROLE -->|write| VALIDATED
+    LAMBDA_ROLE -->|write rejects| RAW
+    LAMBDA_ROLE -->|publish| SNS
+    LAMBDA_ROLE -->|logs| CW
+
+    %% GLUE ETL ROLE
+    VALIDATED -->|read| GLUE_ETL_ROLE
+    GLUE_ETL_ROLE -->|write processed| PROCESSED
+    GLUE_ETL_ROLE -->|write rejects| RAW
+    GLUE_ETL_ROLE -->|archive validated| VALIDATED
+    GLUE_ETL_ROLE -->|publish| SNS
+    GLUE_ETL_ROLE -->|logs| CW
+
+    %% GOLD ROLE
+    PROCESSED -->|read| GLUE_GOLD_ROLE
+    GLUE_GOLD_ROLE -->|write gold| GOLD
+    GLUE_GOLD_ROLE -->|audit metrics| RAW
+    GLUE_GOLD_ROLE -->|start crawler| CRAWLER_ROLE
+    GLUE_GOLD_ROLE -->|logs| CW
+
+    %% CRAWLER ROLE
+    GOLD -->|read| CRAWLER_ROLE
+    PROCESSED -->|read| CRAWLER_ROLE
+    CRAWLER_ROLE -->|update tables| CATALOG
+    CRAWLER_ROLE -->|logs| CW
+
+
+```
 
 ---
 
