@@ -1,6 +1,9 @@
 # Retail AWS ETL Pipeline
 A Production-Grade, Serverless Data Ingestion & Transformation Framework for Retail Transaction Files
 
+
+![alt text](<imgs/Data flow image.png>)
+
 This repository contains a fully automated, fault-tolerant, and highly extensible **retail data ingestion pipeline** built on **AWS serverless technologies** (S3, Lambda, Glue, SNS). It handles semi-structured CSV retail transaction files, validates them, enforces business rules, transforms them using PySpark, and stores clean, query-ready datasets in a data lake architecture.
 
 The pipeline enforces industry best practices:
