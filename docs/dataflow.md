@@ -1,5 +1,79 @@
 # End-to-End Dataflow
 
+                   +------------------------+
+                   |      S3 RAW ZONE       |
+                   |   raw/<file>.csv       |
+                   +-----------+------------+
+                               |
+                               | S3 Event Trigger
+                               v
+                   +------------------------+
+                   |    Lambda Validator    |
+                   | - header validation    |
+                   | - delimiter detection  |
+                   | - required columns     |
+                   +------+-------+---------+
+                          |       |
+                          |       |
+                     Valid|   Invalid (system reject)
+                          |       |
+                          v       v
+        +------------------------+      +------------------------------+
+        |     S3 VALIDATED       |      |    rejected/system/         |
+        | validated/<file>.csv   |      | file + reason.json          |
+        +-----------+------------+      +------------------------------+
+                    |
+                    | Trigger Glue
+                    v
+        +--------------------------------------------------------------+
+        |     Glue Job #1: Raw → Processed                             |
+        |  - Clean & split rows                                        |
+        |  - Header-based mapping                                      |
+        |  - Timestamp parsing                                         |
+        |  - Numeric normalization                                     |
+        |  - Business DQ rules                                         |
+        |  - Write good rows to processed/date=YYYY-MM-DD/             |
+        |  - Write rejects to rejected/data_quality/                   |
+        |  - Archive validated file                                    |
+        |  - On failure: move validated to rejected/system/            |
+        +-------------+-----------------+-------------------------------+
+                      |                 |
+               Good Rows        DQ Rejects / Structural Rejects
+                      |                 |
+                      v                 v
+    +-------------------------+    +------------------------------+
+    |     S3 PROCESSED       |    |  rejected/data_quality/      |
+    | processed/date=YYYY-MM-DD/   |  json + csv                 |
+    +-------------+---------------+------------------------------+
+                  |
+                  | Scheduled / On Demand
+                  v
+        +--------------------------------------------------------------+
+        |     Glue Job #2: GOLD Compaction (Processed → Gold)          |
+        |  - Deduplicate by transaction_id                             |
+        |  - Compute row_hash                                          |
+        |  - Coalesce files                                            |
+        |  - Write to gold/fact_sales/date=YYYY-MM-DD/                 |
+        |  - Write audit metrics                                       |
+        +-------------+------------------------------------------------+
+                      |
+                      v
+            +-----------------------+
+            |      GOLD ZONE       |
+            | gold/fact_sales/     |
+            +-----------------------+
+                      |
+                      v
+         +-----------------------------+
+         |   Glue Crawler (Optional)   |
+         +--------------+--------------+
+                        |
+                        v
+         +-----------------------------+
+         | Athena / BI Visualization   |
+         +-----------------------------+
+
+
 1. Producer uploads CSV to `raw/` (S3 PUT)
 2. S3 Event triggers Lambda: header & schema checks, delimiter detection, quick DQ
    - If pass: move file to `validated/`

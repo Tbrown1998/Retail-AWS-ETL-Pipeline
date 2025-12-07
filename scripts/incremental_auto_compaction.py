@@ -35,9 +35,9 @@ from pyspark.sql.types import StringType
 from pyspark.sql.window import Window
 from pyspark.sql.functions import col, lit, coalesce, md5, concat_ws, current_timestamp, row_number, desc
 
-# ---------------------------
+
 # Args
-# ---------------------------
+
 args = getResolvedOptions(
     sys.argv,
     [
@@ -68,9 +68,9 @@ reprocess_flag = get_optional("reprocess", "false").lower() == "true"
 force_dates_arg = get_optional("force_dates", "").strip()  # comma separated
 force_dates = [d.strip() for d in force_dates_arg.split(",") if d.strip()] if force_dates_arg else []
 
-# ---------------------------
+
 # Init clients & Spark
-# ---------------------------
+
 s3 = boto3.client("s3")
 sc = SparkContext()
 glueContext = GlueContext(sc)
@@ -84,9 +84,8 @@ print(f"[INFO] gold_path={gold_path}")
 print(f"[INFO] audit_path={audit_path}")
 print(f"[INFO] max_partitions={max_partitions} reprocess={reprocess_flag} force_dates={force_dates}")
 
-# ---------------------------
 # Helpers: list partitions under a prefix like 'processed_path'
-# ---------------------------
+
 def list_partition_dates(s3_path):
     """
     Return sorted list of date strings (YYYY-MM-DD) found under s3_path matching 'date=YYYY-MM-DD/'.
@@ -126,9 +125,8 @@ def partition_exists(s3_path, date_str):
     resp = s3.list_objects_v2(Bucket=bucket, Prefix=key_prefix, MaxKeys=1)
     return "Contents" in resp
 
-# ---------------------------
 # Find processed & gold partitions
-# ---------------------------
+
 processed_dates = list_partition_dates(processed_path)
 print(f"[INFO] Found processed partitions: {processed_dates}")
 
@@ -162,9 +160,9 @@ if not partitions_to_process:
     job.commit()
     sys.exit(0)
 
-# ---------------------------
+
 # Core per-partition compaction function
-# ---------------------------
+
 def compact_partition(date_str):
     input_partition_path = f"{processed_path}date={date_str}/"
     output_partition_path = f"{gold_path}date={date_str}/"
@@ -277,17 +275,17 @@ def compact_partition(date_str):
 
     return metrics
 
-# ---------------------------
+
 # Run compaction for each partition
-# ---------------------------
+
 results = []
 for d in partitions_to_process:
     res = compact_partition(d)
     results.append(res)
 
-# ---------------------------
+
 # Summary write
-# ---------------------------
+
 summary = {
     "job_name": JOB_NAME,
     "run_ts_utc": datetime.utcnow().isoformat(),
@@ -307,9 +305,9 @@ except Exception as e:
     print(f"[WARN] Failed to write run summary: {e}")
 
 
-# -----------------------------------------
+
 # OPTIONAL: Auto-start Glue crawler after compaction
-# -----------------------------------------
+
 crawler_name = get_optional("crawler_name", None)
 
 if crawler_name:

@@ -1,5 +1,6 @@
 # Architecture Overview
 
+```
 s3://retail-sales-demo-s3/
 │
 ├── raw/                               # Incoming unprocessed source files
@@ -45,25 +46,40 @@ s3://retail-sales-demo-s3/
 │
 └── logs/ (optional)
      └── glue/
-
-
-![alt text](image.png)
+```
+C:\Users\hp\Documents\Data_Data_Data\aws\retail-aws-etl-pipeline\docs\image.png
 
 ## Layers:
+
+![alt text](image.png)
 - raw/: incoming source files
 - validated/: files that passed Lambda validation
 - processed/: parquet outputs from main Glue job (partitioned by date)
+
+![alt text](image-1.png)
 - gold/: compacted, deduplicated, analytics-ready fact tables (partitioned by date)
+
+![alt text](image-2.png)
 - rejected/: data_quality & system rejects (json + csv)
+
+![alt text](image-3.png)
 - archive/: archived original files after successful processing
 
 ## This system implements a serverless, event-driven, multi-stage data ingestion pipeline on AWS.
 ### Components:
 - S3: data lake storage (raw, validated, processed, gold, rejected, archive)
+
+![alt text](image-4.png)
 - Lambda: lightweight validation, header check, delimiter detection, routing
+
+![alt text](image-5.png)
 - Glue (PySpark): heavy ETL to transform/clean/process data (raw -> processed)
 - Glue (PySpark): GOLD compaction job (processed -> gold/fact_sales)
+
+![alt text](image-6.png)
 - Glue Crawler: optional to populate Glue Data Catalog for Athena
+
+![alt text](image-7.png)
 - SNS & CloudWatch: observability, alerts, and logging
 
 ## Atomicity and guarantees:

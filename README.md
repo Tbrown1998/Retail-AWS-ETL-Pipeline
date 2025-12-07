@@ -14,6 +14,33 @@ The pipeline enforces industry best practices:
 - observability via SNS + CloudWatch
 - archival with traceable naming
 
+## Folder structure (Repository)
+```
+retail-aws-etl-pipeline/
+├── README.md
+├── docs/
+│   ├── architecture.md
+│   ├── dataflow.md
+│   ├── lambda_validation.md
+│   ├── glue_etl.md
+│   ├── gold_job.md
+│   ├── schema_mapping.md
+│   ├── timestamp_parsing.md
+│   ├── validation.md
+│   ├── rejects.md
+│   ├── file_movement.md
+│   ├── s3_layout.md
+│   ├── monitoring.md
+│   ├── troubleshooting.md
+│   ├── glue_crawlers.md
+│   ├── athena_queries.md
+│   └── scripts.md
+└── scripts/
+    ├── glue_job_raw_to_processed.py
+    ├── incremental_auto_compaction.py
+    └── lambda_validator.py
+```
+
 ## Key Capabilities
 - Flexible header-based mapping (synonyms & variations supported)
 - Automatic delimiter detection (, ; | \t)
@@ -42,32 +69,6 @@ processed/ → GOLD compaction (Glue job 2)
              → optional Glue crawler -> Glue Catalog / Athena
 ```
 
-## Folder structure (repo)
-```
-retail-aws-etl-pipeline/
-├── README.md
-├── docs/
-│   ├── architecture.md
-│   ├── dataflow.md
-│   ├── lambda_validation.md
-│   ├── glue_etl.md
-│   ├── gold_job.md
-│   ├── schema_mapping.md
-│   ├── timestamp_parsing.md
-│   ├── validation.md
-│   ├── rejects.md
-│   ├── file_movement.md
-│   ├── s3_layout.md
-│   ├── monitoring.md
-│   ├── troubleshooting.md
-│   ├── glue_crawlers.md
-│   ├── athena_queries.md
-│   └── scripts.md
-└── scripts/
-    ├── glue_job_raw_to_processed.py
-    ├── incremental_auto_compaction.py
-    └── lambda_validator.py
-```
 
 ## Gold layer summary
 The GOLD layer contains curated, analytics-ready tables (facts) created from processed data. A separate Glue job (`incremental_auto_compaction.py`) compacts daily partitions from `processed/` into `gold/fact_sales/` performing deduplication, basic data normalization, row hashing, and audit metrics. The gold job writes per-partition audit JSON files and optionally triggers a Glue crawler to update the Glue Data Catalog.
