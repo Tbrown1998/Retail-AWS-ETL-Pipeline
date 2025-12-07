@@ -1,5 +1,6 @@
 # S3 Layout (Data Lake Zones)
 
+```
 s3://retail-sales-demo-s3/
 │
 ├── raw/                               # Incoming unprocessed source files
@@ -45,6 +46,7 @@ s3://retail-sales-demo-s3/
 │
 └── logs/ (optional)
      └── glue/
+```
 
 - `raw/` - incoming raw files
 - `validated/` - files that passed Lambda validation
